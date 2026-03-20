@@ -441,6 +441,7 @@ button { padding: 10px; font-size: 0.9rem; }
 <h2>¿Qué quieres aprender hoy?</h2>
 <button onclick="selectSubject('mates')" style="background:linear-gradient(135deg, #FF9F43, #f39c12); color:white; border:none;">🧮 Matemáticas</button>
 <button onclick="selectSubject('lengua')" style="background:linear-gradient(135deg, #54a0ff, #2e86de); color:white; border:none;">📖 Lengua Castellana</button>
+<button onclick="selectSubject('ingles')" style="background:linear-gradient(135deg, #9b59b6, #8e44ad); color:white; border:none;">🇬🇧 Inglés</button>
 <button onclick="selectSubject('medio')" style="background:linear-gradient(135deg, #1dd1a1, #10ac84); color:white; border:none;">🌍 Conocimiento del Medio</button>
 </div>
 </div>
@@ -531,9 +532,9 @@ button { padding: 10px; font-size: 0.9rem; }
 </div>
 
 <script>
-// ============================================================================
-// CONFIGURACIÓN Y ESTADO GLOBAL
-// ============================================================================
+/* ============================================================================
+CONFIGURACIÓN Y ESTADO GLOBAL
+============================================================================ */
 const EMOJI_OPTIONS = ['🦄','🌈','⭐','🎈','🍕','🐱','🚀','🌸','🎮','🍦'];
 let audioContext = null;
 let appState = {
@@ -554,9 +555,9 @@ streak: 0
 };
 let allUsers = [];
 
-// ============================================================================
-// SISTEMA DE AUDIO
-// ============================================================================
+/* ============================================================================
+SISTEMA DE AUDIO
+============================================================================ */
 function initAudio() {
 try {
 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -624,251 +625,118 @@ console.log('Error sonido:', e);
 }
 }
 
-function speak(text) {
+function speak(text, lang) {
 if (!appState.voiceEnabled) return;
 if ('speechSynthesis' in window) {
 window.speechSynthesis.cancel();
 const utterance = new SpeechSynthesisUtterance(text);
-utterance.lang = 'es-ES';
-utterance.rate = 0.95;
+utterance.lang = lang || 'es-ES';
+utterance.rate = lang === 'en-GB' ? 0.85 : 0.95;
 utterance.pitch = 1.1;
 utterance.volume = 0.8;
 window.speechSynthesis.speak(utterance);
 }
 }
 
-// ============================================================================
-// UTILIDADES
-// ============================================================================
-function r(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-
-function saveData() {
-try {
-if (appState.currentUser) {
-localStorage.setItem('carla_user_' + appState.currentUser.id, JSON.stringify(appState.currentUser));
-}
-localStorage.setItem('carla_users', JSON.stringify(allUsers));
-localStorage.setItem('carla_settings', JSON.stringify({
-voiceEnabled: appState.voiceEnabled,
-soundEnabled: appState.soundEnabled
-}));
-} catch(e) {
-console.log('Error guardando:', e);
-}
-}
-
-function loadData() {
-try {
-const settings = localStorage.getItem('carla_settings');
-if (settings) {
-const s = JSON.parse(settings);
-appState.voiceEnabled = s.voiceEnabled !== undefined ? s.voiceEnabled : true;
-appState.soundEnabled = s.soundEnabled !== undefined ? s.soundEnabled : true;
-}
-allUsers = JSON.parse(localStorage.getItem('carla_users')) || [];
-} catch(e) {
-console.log('Error cargando:', e);
-allUsers = [];
-}
-}
-
-function createUserId(name, emojis) {
-return name + '_' + emojis.join('');
-}
-
-// ============================================================================
-// GESTIÓN DE USUARIOS
-// ============================================================================
-function initLoginScreen() {
-['login', 'new'].forEach(prefix => {
-const container = document.getElementById(prefix + '-emoji-selector');
-if (container) {
-container.innerHTML = '';
-EMOJI_OPTIONS.forEach(emoji => {
-const div = document.createElement('div');
-div.className = 'emoji-option';
-div.innerText = emoji;
-div.onclick = () => selectEmoji(prefix, emoji, div);
-container.appendChild(div);
-});
-}
-});
-loadData();
-console.log('Login screen initialized');
-}
-
-function selectEmoji(prefix, emoji, element) {
-const key = prefix + '-selected';
-if (!appState[key]) appState[key] = [];
-if (appState[key].length < 3) {
-appState[key].push(emoji);
-element.classList.add('selected');
-updateEmojiPreview(prefix);
-}
-}
-
-function updateEmojiPreview(prefix) {
-const key = prefix + '-selected';
-const preview = document.getElementById(prefix + '-emoji-preview');
-if (preview) {
-preview.innerText = appState[key] ? appState[key].join(' ') : '';
-}
-}
-
-function createUser() {
-const name = document.getElementById('new-name').value.trim();
-const emojis = appState['new-selected'];
-if (!name) { alert('Por favor, escribe tu nombre'); return; }
-if (!emojis || emojis.length !== 3) { alert('Selecciona 3 emojis'); return; }
-const userId = createUserId(name, emojis);
-if (allUsers.find(u => u.id === userId)) {
-alert('Este usuario ya existe. Prueba con otros emojis.');
-return;
-}
-const newUser = {
-id: userId,
-name: name,
-emojis: emojis,
-stars: 0,
-level: 1,
-uniqueQuestions: 0,
-questionsDone: {},
-medals: []
-};
-allUsers.push(newUser);
-saveData();
-appState.currentUser = newUser;
-appState.currentUser.questionsDone = appState.currentUser.questionsDone || {};
-updateHomeScreen();
-showScreen('screen-home');
-}
-
-function loginUser() {
-const name = document.getElementById('login-name').value.trim();
-const emojis = appState['login-selected'];
-if (!name) { alert('Por favor, escribe tu nombre'); return; }
-if (!emojis || emojis.length !== 3) { alert('Selecciona 3 emojis'); return; }
-const userId = createUserId(name, emojis);
-const user = allUsers.find(u => u.id === userId);
-if (!user) {
-alert('Usuario no encontrado. ¿Eres nuevo? Crea tu cuenta.');
-return;
-}
-appState.currentUser = user;
-appState.currentUser.questionsDone = appState.currentUser.questionsDone || {};
-updateHomeScreen();
-showScreen('screen-home');
-}
-
-function logoutUser() {
-appState.currentUser = null;
-appState['new-selected'] = [];
-appState['login-selected'] = [];
-const newName = document.getElementById('new-name');
-const loginName = document.getElementById('login-name');
-if (newName) newName.value = '';
-if (loginName) loginName.value = '';
-document.querySelectorAll('.emoji-option').forEach(e => e.classList.remove('selected'));
-document.querySelectorAll('.emoji-preview').forEach(e => e.innerText = '');
-showScreen('screen-login');
-}
-
-function updateHomeScreen() {
-if (!appState.currentUser) return;
-const user = appState.currentUser;
-const headerName = document.getElementById('header-name');
-const headerEmojis = document.getElementById('header-emojis');
-const totalStars = document.getElementById('total-stars');
-const userLevel = document.getElementById('user-level');
-const uniqueQuestions = document.getElementById('unique-questions');
-const welcomeTitle = document.getElementById('welcome-title');
-
-if (headerName) headerName.innerText = user.name;
-if (headerEmojis) headerEmojis.innerText = user.emojis.join(' ');
-if (totalStars) totalStars.innerText = user.stars;
-if (userLevel) userLevel.innerText = user.level;
-if (uniqueQuestions) uniqueQuestions.innerText = user.uniqueQuestions;
-if (welcomeTitle) welcomeTitle.innerText = '¡Hola ' + user.name + '!';
-}
-
-function resetUserProgress() {
-if (confirm('¿Seguro que quieres borrar TU progreso? Esto no se puede deshacer.')) {
-appState.currentUser.stars = 0;
-appState.currentUser.level = 1;
-appState.currentUser.uniqueQuestions = 0;
-appState.currentUser.questionsDone = {};
-saveData();
-updateHomeScreen();
-alert('Tu progreso ha sido reiniciado.');
-}
-}
-
-// ============================================================================
-// NAVEGACIÓN
-// ============================================================================
-function showScreen(id) {
-console.log('Showing screen:', id);
-document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-const target = document.getElementById(id);
-if (target) {
-target.classList.add('active');
-}
-if (appState.currentUser) {
-const ids = ['subject-stars', 'topic-stars', 'game-stars', 'rewards-stars', 'reward-unique', 'reward-level'];
-const values = [appState.currentUser.stars, appState.currentUser.stars, appState.currentUser.stars, appState.currentUser.stars, appState.currentUser.uniqueQuestions, appState.currentUser.level];
-ids.forEach((id, i) => {
-const el = document.getElementById(id);
-if (el) el.innerText = values[i];
-});
-}
-const voiceStatus = document.getElementById('settings-voice');
-if (voiceStatus) voiceStatus.innerText = appState.voiceEnabled ? 'ON' : 'OFF';
-}
-
-function selectSubject(subj) {
-gameState.subject = subj;
-const titles = { 'mates': '🧮 Matemáticas', 'lengua': '📖 Lengua Castellana', 'medio': '🌍 Conocimiento del Medio' };
-const topicTitle = document.getElementById('topic-title');
-if (topicTitle) topicTitle.innerText = titles[subj];
-const list = document.getElementById('topics-list');
-if (!list) return;
-list.innerHTML = '';
-let topics = [];
-if (subj === 'mates') topics = [
-{id:'sumas', name:'➕ Sumas con Problemas'}, {id:'restas', name:'➖ Restas con Problemas'},
-{id:'mult', name:'✖️ Multiplicación'}, {id:'div', name:'➗ Divisiones'},
-{id:'fraccion', name:'🍕 Fracciones'}, {id:'problema', name:'🧩 Problemas Compuestos'}
-];
-if (subj === 'lengua') topics = [
-{id:'ortografia', name:'🅱️ Ortografía'}, {id:'gramatica', name:'📝 Gramática'},
-{id:'sinonimos', name:'🔄 Sinónimos'}, {id:'antonimos', name:'↔️ Antónimos'}
-];
-if (subj === 'medio') topics = [
-{id:'animales', name:'🦁 Animales'}, {id:'cuerpo', name:'🫀 Cuerpo Humano'}, {id:'planeta', name:'🪐 El Universo'}
-];
-topics.forEach(t => {
-let btn = document.createElement('button');
-btn.className = 'secondary';
-btn.innerText = t.name;
-btn.onclick = () => startGame(t.id);
-list.appendChild(btn);
-});
-showScreen('screen-topics');
-}
-
-function startGame(topicId) {
-gameState.topic = topicId;
-gameState.sessionStars = 0;
-gameState.attempts = 0;
-gameState.streak = 0;
-showScreen('screen-game');
-loadQuestion();
-}
-
-// ============================================================================
-// BANCO DE PREGUNTAS
-// ============================================================================
+/* ============================================================================
+BASE DE DATOS DE PREGUNTAS - INGLÉS INCLUIDO
+============================================================================ */
 const questionBank = {
+ingles: {
+vocabulario: [
+{ id: 'ing_vocab_1', q: '¿Qué significa "red"?', context: '🔴 Color', options: ['Rojo', 'Azul', 'Verde'], correct: 'Rojo', explanation: '<b>Red</b> significa <b>rojo</b> en inglés.', voice: 'red' },
+{ id: 'ing_vocab_2', q: '¿Qué significa "blue"?', context: '🔵 Color', options: ['Amarillo', 'Azul', 'Naranja'], correct: 'Azul', explanation: '<b>Blue</b> significa <b>azul</b> en inglés.', voice: 'blue' },
+{ id: 'ing_vocab_3', q: '¿Qué significa "green"?', context: '🟢 Color', options: ['Verde', 'Morado', 'Rosa'], correct: 'Verde', explanation: '<b>Green</b> significa <b>verde</b> en inglés.', voice: 'green' },
+{ id: 'ing_vocab_4', q: '¿Qué significa "yellow"?', context: '🟡 Color', options: ['Amarillo', 'Blanco', 'Negro'], correct: 'Amarillo', explanation: '<b>Yellow</b> significa <b>amarillo</b> en inglés.', voice: 'yellow' },
+{ id: 'ing_vocab_5', q: '¿Qué significa "orange"?', context: '🟠 Color', options: ['Naranja', 'Rojo', 'Rosa'], correct: 'Naranja', explanation: '<b>Orange</b> significa <b>naranja</b> en inglés.', voice: 'orange' },
+{ id: 'ing_vocab_6', q: '¿Qué significa "purple"?', context: '🟣 Color', options: ['Morado', 'Azul', 'Verde'], correct: 'Morado', explanation: '<b>Purple</b> significa <b>morado</b> en inglés.', voice: 'purple' },
+{ id: 'ing_vocab_7', q: '¿Qué significa "black"?', context: '⚫ Color', options: ['Negro', 'Blanco', 'Gris'], correct: 'Negro', explanation: '<b>Black</b> significa <b>negro</b> en inglés.', voice: 'black' },
+{ id: 'ing_vocab_8', q: '¿Qué significa "white"?', context: '⚪ Color', options: ['Blanco', 'Negro', 'Marrón'], correct: 'Blanco', explanation: '<b>White</b> significa <b>blanco</b> en inglés.', voice: 'white' },
+{ id: 'ing_vocab_9', q: '¿Qué significa "dog"?', context: '🐕 Animal', options: ['Perro', 'Gato', 'Pájaro'], correct: 'Perro', explanation: '<b>Dog</b> significa <b>perro</b> en inglés.', voice: 'dog' },
+{ id: 'ing_vocab_10', q: '¿Qué significa "cat"?', context: '🐈 Animal', options: ['Perro', 'Gato', 'Ratón'], correct: 'Gato', explanation: '<b>Cat</b> significa <b>gato</b> en inglés.', voice: 'cat' },
+{ id: 'ing_vocab_11', q: '¿Qué significa "bird"?', context: '🐦 Animal', options: ['Pájaro', 'Pez', 'Perro'], correct: 'Pájaro', explanation: '<b>Bird</b> significa <b>pájaro</b> en inglés.', voice: 'bird' },
+{ id: 'ing_vocab_12', q: '¿Qué significa "fish"?', context: '🐟 Animal', options: ['Pez', 'Gato', 'Ratón'], correct: 'Pez', explanation: '<b>Fish</b> significa <b>pez</b> en inglés.', voice: 'fish' },
+{ id: 'ing_vocab_13', q: '¿Qué significa "horse"?', context: '🐴 Animal', options: ['Caballo', 'Vaca', 'Cerdo'], correct: 'Caballo', explanation: '<b>Horse</b> significa <b>caballo</b> en inglés.', voice: 'horse' },
+{ id: 'ing_vocab_14', q: '¿Qué significa "cow"?', context: '🐄 Animal', options: ['Vaca', 'Oveja', 'Cabra'], correct: 'Vaca', explanation: '<b>Cow</b> significa <b>vaca</b> en inglés.', voice: 'cow' },
+{ id: 'ing_vocab_15', q: '¿Qué significa "pig"?', context: '🐷 Animal', options: ['Cerdo', 'Pollo', 'Pato'], correct: 'Cerdo', explanation: '<b>Pig</b> significa <b>cerdo</b> en inglés.', voice: 'pig' },
+{ id: 'ing_vocab_16', q: '¿Qué significa "apple"?', context: '🍎 Comida', options: ['Manzana', 'Naranja', 'Plátano'], correct: 'Manzana', explanation: '<b>Apple</b> significa <b>manzana</b> en inglés.', voice: 'apple' },
+{ id: 'ing_vocab_17', q: '¿Qué significa "bread"?', context: '🍞 Comida', options: ['Pan', 'Queso', 'Leche'], correct: 'Pan', explanation: '<b>Bread</b> significa <b>pan</b> en inglés.', voice: 'bread' },
+{ id: 'ing_vocab_18', q: '¿Qué significa "milk"?', context: '🥛 Comida', options: ['Leche', 'Agua', 'Zumo'], correct: 'Leche', explanation: '<b>Milk</b> significa <b>leche</b> en inglés.', voice: 'milk' },
+{ id: 'ing_vocab_19', q: '¿Qué significa "water"?', context: '💧 Comida', options: ['Agua', 'Zumo', 'Leche'], correct: 'Agua', explanation: '<b>Water</b> significa <b>agua</b> en inglés.', voice: 'water' },
+{ id: 'ing_vocab_20', q: '¿Qué significa "cheese"?', context: '🧀 Comida', options: ['Queso', 'Pan', 'Carne'], correct: 'Queso', explanation: '<b>Cheese</b> significa <b>queso</b> en inglés.', voice: 'cheese' },
+{ id: 'ing_vocab_21', q: '¿Qué significa "mother"?', context: '👩 Familia', options: ['Madre', 'Padre', 'Hermana'], correct: 'Madre', explanation: '<b>Mother</b> significa <b>madre</b> en inglés.', voice: 'mother' },
+{ id: 'ing_vocab_22', q: '¿Qué significa "father"?', context: '👨 Familia', options: ['Padre', 'Abuelo', 'Tío'], correct: 'Padre', explanation: '<b>Father</b> significa <b>padre</b> en inglés.', voice: 'father' },
+{ id: 'ing_vocab_23', q: '¿Qué significa "sister"?', context: '👧 Familia', options: ['Hermana', 'Hermano', 'Prima'], correct: 'Hermana', explanation: '<b>Sister</b> significa <b>hermana</b> en inglés.', voice: 'sister' },
+{ id: 'ing_vocab_24', q: '¿Qué significa "brother"?', context: '👦 Familia', options: ['Hermano', 'Hermana', 'Primo'], correct: 'Hermano', explanation: '<b>Brother</b> significa <b>hermano</b> en inglés.', voice: 'brother' },
+{ id: 'ing_vocab_25', q: '¿Qué significa "school"?', context: '🏫 Escuela', options: ['Escuela', 'Casa', 'Parque'], correct: 'Escuela', explanation: '<b>School</b> significa <b>escuela</b> en inglés.', voice: 'school' },
+{ id: 'ing_vocab_26', q: '¿Qué significa "teacher"?', context: '👩‍🏫 Escuela', options: ['Profesor', 'Médico', 'Policía'], correct: 'Profesor', explanation: '<b>Teacher</b> significa <b>profesor</b> en inglés.', voice: 'teacher' },
+{ id: 'ing_vocab_27', q: '¿Qué significa "book"?', context: '📚 Escuela', options: ['Libro', 'Cuaderno', 'Lápiz'], correct: 'Libro', explanation: '<b>Book</b> significa <b>libro</b> en inglés.', voice: 'book' },
+{ id: 'ing_vocab_28', q: '¿Qué significa "pencil"?', context: '✏️ Escuela', options: ['Lápiz', 'Bolígrafo', 'Goma'], correct: 'Lápiz', explanation: '<b>Pencil</b> significa <b>lápiz</b> en inglés.', voice: 'pencil' },
+{ id: 'ing_vocab_29', q: '¿Qué significa "one"?', context: '🔢 Número', options: ['Uno', 'Dos', 'Tres'], correct: 'Uno', explanation: '<b>One</b> significa <b>uno</b> en inglés.', voice: 'one' },
+{ id: 'ing_vocab_30', q: '¿Qué significa "two"?', context: '🔢 Número', options: ['Dos', 'Cuatro', 'Cinco'], correct: 'Dos', explanation: '<b>Two</b> significa <b>dos</b> en inglés.', voice: 'two' }
+],
+gramatica: [
+{ id: 'ing_gram_1', q: 'Completa: "I ___ a student"', context: 'Verbo TO BE', options: ['am', 'is', 'are'], correct: 'am', explanation: 'Con <b>I</b> usamos <b>am</b>. "I am a student".', voice: 'I am a student' },
+{ id: 'ing_gram_2', q: 'Completa: "She ___ my friend"', context: 'Verbo TO BE', options: ['am', 'is', 'are'], correct: 'is', explanation: 'Con <b>She</b> usamos <b>is</b>. "She is my friend".', voice: 'She is my friend' },
+{ id: 'ing_gram_3', q: 'Completa: "They ___ happy"', context: 'Verbo TO BE', options: ['am', 'is', 'are'], correct: 'are', explanation: 'Con <b>They</b> usamos <b>are</b>. "They are happy".', voice: 'They are happy' },
+{ id: 'ing_gram_4', q: 'Completa: "He ___ tall"', context: 'Verbo TO BE', options: ['am', 'is', 'are'], correct: 'is', explanation: 'Con <b>He</b> usamos <b>is</b>. "He is tall".', voice: 'He is tall' },
+{ id: 'ing_gram_5', q: 'Completa: "We ___ friends"', context: 'Verbo TO BE', options: ['am', 'is', 'are'], correct: 'are', explanation: 'Con <b>We</b> usamos <b>are</b>. "We are friends".', voice: 'We are friends' },
+{ id: 'ing_gram_6', q: '¿Cómo se dice "Yo tengo"?', context: 'Verbo TO HAVE', options: ['I has', 'I have', 'I am'], correct: 'I have', explanation: '<b>I have</b> = Yo tengo.', voice: 'I have' },
+{ id: 'ing_gram_7', q: '¿Cómo se dice "Ella tiene"?', context: 'Verbo TO HAVE', options: ['She have', 'She has', 'She is'], correct: 'She has', explanation: 'Con <b>She</b> usamos <b>has</b>.', voice: 'She has' },
+{ id: 'ing_gram_8', q: 'Completa: "This is ___ apple"', context: 'Artículos', options: ['a', 'an', 'the'], correct: 'an', explanation: 'Usamos <b>an</b> antes de vocal. "An apple".', voice: 'This is an apple' },
+{ id: 'ing_gram_9', q: 'Completa: "That is ___ book"', context: 'Artículos', options: ['a', 'an', 'the'], correct: 'a', explanation: 'Usamos <b>a</b> antes de consonante. "A book".', voice: 'That is a book' },
+{ id: 'ing_gram_10', q: '¿Cuál es el plural de "cat"?', context: 'Plurales', options: ['Cat', 'Cats', 'Cates'], correct: 'Cats', explanation: 'El plural se hace añadiendo <b>-s</b>. Cat → Cats.', voice: 'cats' },
+{ id: 'ing_gram_11', q: '¿Cuál es el plural de "dog"?', context: 'Plurales', options: ['Dog', 'Dogs', 'Doges'], correct: 'Dogs', explanation: 'El plural se hace añadiendo <b>-s</b>. Dog → Dogs.', voice: 'dogs' },
+{ id: 'ing_gram_12', q: '¿Cuál es el plural de "box"?', context: 'Plurales', options: ['Box', 'Boxs', 'Boxes'], correct: 'Boxes', explanation: 'Palabras terminadas en -x añaden <b>-es</b>.', voice: 'boxes' },
+{ id: 'ing_gram_13', q: '¿Cuál es el plural de "baby"?', context: 'Plurales', options: ['Baby', 'Babys', 'Babies'], correct: 'Babies', explanation: 'Consonante + y cambia a <b>-ies</b>.', voice: 'babies' },
+{ id: 'ing_gram_14', q: '¿Cuál es el plural de "child"?', context: 'Plurales', options: ['Childs', 'Children', 'Childrens'], correct: 'Children', explanation: 'Es irregular. Child → Children.', voice: 'children' },
+{ id: 'ing_gram_15', q: '¿Cuál es el plural de "man"?', context: 'Plurales', options: ['Mans', 'Men', 'Mens'], correct: 'Men', explanation: 'Es irregular. Man → Men.', voice: 'men' }
+],
+traduccion: [
+{ id: 'ing_trans_1', q: 'Traduce: "Buenos días"', context: 'Saludos', options: ['Good morning', 'Good night', 'Hello'], correct: 'Good morning', explanation: '<b>Good morning</b> = Buenos días.', voice: 'Good morning' },
+{ id: 'ing_trans_2', q: 'Traduce: "Buenas tardes"', context: 'Saludos', options: ['Good morning', 'Good afternoon', 'Good night'], correct: 'Good afternoon', explanation: '<b>Good afternoon</b> = Buenas tardes.', voice: 'Good afternoon' },
+{ id: 'ing_trans_3', q: 'Traduce: "Buenas noches" (despedida)', context: 'Saludos', options: ['Good evening', 'Good night', 'Goodbye'], correct: 'Good night', explanation: '<b>Good night</b> = Buenas noches (al irse).', voice: 'Good night' },
+{ id: 'ing_trans_4', q: 'Traduce: "Hola"', context: 'Saludos', options: ['Hello', 'Goodbye', 'Please'], correct: 'Hello', explanation: '<b>Hello</b> = Hola.', voice: 'Hello' },
+{ id: 'ing_trans_5', q: 'Traduce: "¿Cómo estás?"', context: 'Saludos', options: ['How are you?', 'What is your name?', 'Where are you?'], correct: 'How are you?', explanation: '<b>How are you?</b> = ¿Cómo estás?', voice: 'How are you' },
+{ id: 'ing_trans_6', q: 'Traduce: "Muy bien, gracias"', context: 'Saludos', options: ['Very well, thank you', 'I am sad', 'Goodbye'], correct: 'Very well, thank you', explanation: '<b>Very well, thank you</b> = Muy bien, gracias.', voice: 'Very well, thank you' },
+{ id: 'ing_trans_7', q: 'Traduce: "Adiós"', context: 'Despedidas', options: ['Goodbye', 'Hello', 'Please'], correct: 'Goodbye', explanation: '<b>Goodbye</b> = Adiós.', voice: 'Goodbye' },
+{ id: 'ing_trans_8', q: 'Traduce: "Hasta luego"', context: 'Despedidas', options: ['See you later', 'See you never', 'See you yesterday'], correct: 'See you later', explanation: '<b>See you later</b> = Hasta luego.', voice: 'See you later' },
+{ id: 'ing_trans_9', q: 'Traduce: "Por favor"', context: 'Cortesía', options: ['Please', 'Thank you', 'Sorry'], correct: 'Please', explanation: '<b>Please</b> = Por favor.', voice: 'Please' },
+{ id: 'ing_trans_10', q: 'Traduce: "Gracias"', context: 'Cortesía', options: ['Thank you', 'Please', 'Sorry'], correct: 'Thank you', explanation: '<b>Thank you</b> = Gracias.', voice: 'Thank you' },
+{ id: 'ing_trans_11', q: 'Traduce: "De nada"', context: 'Cortesía', options: ["You're welcome", "I'm sorry", 'Please'], correct: "You're welcome", explanation: "<b>You're welcome</b> = De nada.", voice: "You're welcome" },
+{ id: 'ing_trans_12', q: 'Traduce: "Lo siento"', context: 'Cortesía', options: ['Sorry', 'Thank you', 'Please'], correct: 'Sorry', explanation: '<b>Sorry</b> = Lo siento.', voice: 'Sorry' },
+{ id: 'ing_trans_13', q: 'Traduce: "Me llamo Carla"', context: 'Presentación', options: ['My name is Carla', 'I am Carla', 'Ambas son correctas'], correct: 'Ambas son correctas', explanation: 'Las dos formas son correctas.', voice: 'My name is Carla' },
+{ id: 'ing_trans_14', q: 'Traduce: "¿Cómo te llamas?"', context: 'Presentación', options: ["What's your name?", 'How are you?', 'Where are you?'], correct: "What's your name?", explanation: "<b>What's your name?</b> = ¿Cómo te llamas?", voice: "What's your name" },
+{ id: 'ing_trans_15', q: 'Traduce: "Mucho gusto"', context: 'Presentación', options: ['Nice to meet you', 'Nice to see you', 'Good to know'], correct: 'Nice to meet you', explanation: '<b>Nice to meet you</b> = Mucho gusto.', voice: 'Nice to meet you' },
+{ id: 'ing_trans_16', q: 'Traduce: "Tengo 8 años"', context: 'Edad', options: ['I am 8 years old', 'I have 8 years', 'I am 8'], correct: 'I am 8 years old', explanation: 'La edad se dice con <b>to be</b>.', voice: 'I am eight years old' },
+{ id: 'ing_trans_17', q: 'Traduce: "¿Cuántos años tienes?"', context: 'Edad', options: ['How old are you?', 'How many years?', 'What age?'], correct: 'How old are you?', explanation: '<b>How old are you?</b> = ¿Cuántos años tienes?', voice: 'How old are you' },
+{ id: 'ing_trans_18', q: 'Traduce: "Vivo en España"', context: 'Lugar', options: ['I live in Spain', 'I am in Spain', 'I go to Spain'], correct: 'I live in Spain', explanation: '<b>Live</b> = vivir.', voice: 'I live in Spain' },
+{ id: 'ing_trans_19', q: 'Traduce: "Me gusta el fútbol"', context: 'Gustos', options: ['I like football', 'I love football', 'I play football'], correct: 'I like football', explanation: '<b>Like</b> = gustar.', voice: 'I like football' },
+{ id: 'ing_trans_20', q: 'Traduce: "No me gusta"', context: 'Gustos', options: ["I don't like", 'I no like', 'I not like'], correct: "I don't like", explanation: "La negación es <b>I don't like</b>.", voice: "I don't like" }
+],
+listening: [
+{ id: 'ing_listen_1', q: 'Escucha y elige el color', context: '🔊 Pulsa 🔊 para escuchar', options: ['Red', 'Blue', 'Green'], correct: 'Red', explanation: 'Has escuchado <b>"red"</b> que significa rojo.', voice: 'red', listenFirst: true },
+{ id: 'ing_listen_2', q: 'Escucha y elige el color', context: '🔊 Pulsa 🔊 para escuchar', options: ['Yellow', 'Orange', 'Purple'], correct: 'Yellow', explanation: 'Has escuchado <b>"yellow"</b> que significa amarillo.', voice: 'yellow', listenFirst: true },
+{ id: 'ing_listen_3', q: 'Escucha y elige el color', context: '🔊 Pulsa 🔊 para escuchar', options: ['Black', 'White', 'Brown'], correct: 'Black', explanation: 'Has escuchado <b>"black"</b> que significa negro.', voice: 'black', listenFirst: true },
+{ id: 'ing_listen_4', q: 'Escucha y elige el animal', context: '🔊 Pulsa 🔊 para escuchar', options: ['Cat', 'Dog', 'Bird'], correct: 'Dog', explanation: 'Has escuchado <b>"dog"</b> que significa perro.', voice: 'dog', listenFirst: true },
+{ id: 'ing_listen_5', q: 'Escucha y elige el animal', context: '🔊 Pulsa 🔊 para escuchar', options: ['Fish', 'Horse', 'Cow'], correct: 'Cat', explanation: 'Has escuchado <b>"cat"</b> que significa gato.', voice: 'cat', listenFirst: true },
+{ id: 'ing_listen_6', q: 'Escucha y elige el número', context: '🔊 Pulsa 🔊 para escuchar', options: ['One', 'Two', 'Three'], correct: 'Two', explanation: 'Has escuchado <b>"two"</b> que significa dos.', voice: 'two', listenFirst: true },
+{ id: 'ing_listen_7', q: 'Escucha y elige el número', context: '🔊 Pulsa 🔊 para escuchar', options: ['Five', 'Six', 'Seven'], correct: 'Five', explanation: 'Has escuchado <b>"five"</b> que significa cinco.', voice: 'five', listenFirst: true },
+{ id: 'ing_listen_8', q: 'Escucha y elige el número', context: '🔊 Pulsa 🔊 para escuchar', options: ['Ten', 'Eleven', 'Twelve'], correct: 'Ten', explanation: 'Has escuchado <b>"ten"</b> que significa diez.', voice: 'ten', listenFirst: true },
+{ id: 'ing_listen_9', q: 'Escucha y elige la comida', context: '🔊 Pulsa 🔊 para escuchar', options: ['Apple', 'Bread', 'Water'], correct: 'Apple', explanation: 'Has escuchado <b>"apple"</b> que significa manzana.', voice: 'apple', listenFirst: true },
+{ id: 'ing_listen_10', q: 'Escucha y elige la comida', context: '🔊 Pulsa 🔊 para escuchar', options: ['Milk', 'Cheese', 'Egg'], correct: 'Milk', explanation: 'Has escuchado <b>"milk"</b> que significa leche.', voice: 'milk', listenFirst: true },
+{ id: 'ing_listen_11', q: 'Escucha y elige el saludo', context: '🔊 Pulsa 🔊 para escuchar', options: ['Good morning', 'Good night', 'Hello'], correct: 'Good morning', explanation: 'Has escuchado <b>"Good morning"</b>.', voice: 'Good morning', listenFirst: true },
+{ id: 'ing_listen_12', q: 'Escucha y elige el saludo', context: '🔊 Pulsa 🔊 para escuchar', options: ['Goodbye', 'See you later', 'Good afternoon'], correct: 'Goodbye', explanation: 'Has escuchado <b>"Goodbye"</b>.', voice: 'Goodbye', listenFirst: true },
+{ id: 'ing_listen_13', q: 'Escucha y elige la familia', context: '🔊 Pulsa 🔊 para escuchar', options: ['Mother', 'Father', 'Sister'], correct: 'Mother', explanation: 'Has escuchado <b>"mother"</b>.', voice: 'mother', listenFirst: true },
+{ id: 'ing_listen_14', q: 'Escucha y elige la familia', context: '🔊 Pulsa 🔊 para escuchar', options: ['Brother', 'Grandmother', 'Grandfather'], correct: 'Brother', explanation: 'Has escuchado <b>"brother"</b>.', voice: 'brother', listenFirst: true },
+{ id: 'ing_listen_15', q: 'Escucha y elige la escuela', context: '🔊 Pulsa 🔊 para escuchar', options: ['School', 'Teacher', 'Student'], correct: 'School', explanation: 'Has escuchado <b>"school"</b>.', voice: 'school', listenFirst: true },
+{ id: 'ing_listen_16', q: 'Escucha y elige el objeto', context: '🔊 Pulsa 🔊 para escuchar', options: ['Book', 'Pencil', 'Pen'], correct: 'Book', explanation: 'Has escuchado <b>"book"</b>.', voice: 'book', listenFirst: true },
+{ id: 'ing_listen_17', q: 'Escucha y elige la frase', context: '🔊 Pulsa 🔊 para escuchar', options: ['I am happy', 'I am sad', 'I am tired'], correct: 'I am happy', explanation: 'Has escuchado <b>"I am happy"</b>.', voice: 'I am happy', listenFirst: true },
+{ id: 'ing_listen_18', q: 'Escucha y elige la frase', context: '🔊 Pulsa 🔊 para escuchar', options: ['I like pizza', 'I like football', 'I like cats'], correct: 'I like pizza', explanation: 'Has escuchado <b>"I like pizza"</b>.', voice: 'I like pizza', listenFirst: true },
+{ id: 'ing_listen_19', q: 'Escucha y elige el lugar', context: '🔊 Pulsa 🔊 para escuchar', options: ['Home', 'School', 'Park'], correct: 'Home', explanation: 'Has escuchado <b>"home"</b>.', voice: 'home', listenFirst: true },
+{ id: 'ing_listen_20', q: 'Escucha y elige el verbo', context: '🔊 Pulsa 🔊 para escuchar', options: ['Have', 'Has', 'Had'], correct: 'Have', explanation: 'Has escuchado <b>"have"</b>.', voice: 'have', listenFirst: true }
+]
+},
 lengua: {
 ortografia: [
 { id: 'ort_1', q: '¿Cómo se escribe: __arco?', context: 'Un barco navega por el mar.', options: ['B', 'V'], correct: 'B', explanation: 'Se escribe con <b>B</b> porque las palabras que empiezan por "bar-" suelen llevar B.' },
@@ -910,9 +778,9 @@ planeta: [
 }
 };
 
-// ============================================================================
-// MOTOR MATEMÁTICO
-// ============================================================================
+/* ============================================================================
+MOTOR MATEMÁTICO
+============================================================================ */
 const mathEngine = {
 generate: function(topic, level) {
 let n1, n2, n3, res;
@@ -967,16 +835,246 @@ return { type: 'input', context: 'Problema de varias operaciones', q: 'Carla tie
 }
 };
 
-// ============================================================================
-// JUEGO
-// ============================================================================
+/* ============================================================================
+UTILIDADES
+============================================================================ */
+function r(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function saveData() {
+try {
+if (appState.currentUser) {
+localStorage.setItem('carla_user_' + appState.currentUser.id, JSON.stringify(appState.currentUser));
+}
+localStorage.setItem('carla_users', JSON.stringify(allUsers));
+localStorage.setItem('carla_settings', JSON.stringify({
+voiceEnabled: appState.voiceEnabled,
+soundEnabled: appState.soundEnabled
+}));
+} catch(e) {
+console.log('Error guardando:', e);
+}
+}
+
+function loadData() {
+try {
+const settings = localStorage.getItem('carla_settings');
+if (settings) {
+const s = JSON.parse(settings);
+appState.voiceEnabled = s.voiceEnabled !== undefined ? s.voiceEnabled : true;
+appState.soundEnabled = s.soundEnabled !== undefined ? s.soundEnabled : true;
+}
+allUsers = JSON.parse(localStorage.getItem('carla_users')) || [];
+} catch(e) {
+console.log('Error cargando:', e);
+allUsers = [];
+}
+}
+
+function createUserId(name, emojis) {
+return name + '_' + emojis.join('');
+}
+
+/* ============================================================================
+GESTIÓN DE USUARIOS
+============================================================================ */
+function initLoginScreen() {
+['login', 'new'].forEach(function(prefix) {
+const container = document.getElementById(prefix + '-emoji-selector');
+if (container) {
+container.innerHTML = '';
+EMOJI_OPTIONS.forEach(function(emoji) {
+const div = document.createElement('div');
+div.className = 'emoji-option';
+div.innerText = emoji;
+div.onclick = function() { selectEmoji(prefix, emoji, div); };
+container.appendChild(div);
+});
+}
+});
+loadData();
+}
+
+function selectEmoji(prefix, emoji, element) {
+const key = prefix + '-selected';
+if (!appState[key]) appState[key] = [];
+if (appState[key].length < 3) {
+appState[key].push(emoji);
+element.classList.add('selected');
+updateEmojiPreview(prefix);
+}
+}
+
+function updateEmojiPreview(prefix) {
+const key = prefix + '-selected';
+const preview = document.getElementById(prefix + '-emoji-preview');
+if (preview) {
+preview.innerText = appState[key] ? appState[key].join(' ') : '';
+}
+}
+
+function createUser() {
+const name = document.getElementById('new-name').value.trim();
+const emojis = appState['new-selected'];
+if (!name) { alert('Por favor, escribe tu nombre'); return; }
+if (!emojis || emojis.length !== 3) { alert('Selecciona 3 emojis'); return; }
+const userId = createUserId(name, emojis);
+if (allUsers.find(function(u) { return u.id === userId; })) {
+alert('Este usuario ya existe. Prueba con otros emojis.');
+return;
+}
+const newUser = {
+id: userId,
+name: name,
+emojis: emojis,
+stars: 0,
+level: 1,
+uniqueQuestions: 0,
+questionsDone: {},
+medals: []
+};
+allUsers.push(newUser);
+saveData();
+appState.currentUser = newUser;
+appState.currentUser.questionsDone = appState.currentUser.questionsDone || {};
+updateHomeScreen();
+showScreen('screen-home');
+}
+
+function loginUser() {
+const name = document.getElementById('login-name').value.trim();
+const emojis = appState['login-selected'];
+if (!name) { alert('Por favor, escribe tu nombre'); return; }
+if (!emojis || emojis.length !== 3) { alert('Selecciona 3 emojis'); return; }
+const userId = createUserId(name, emojis);
+const user = allUsers.find(function(u) { return u.id === userId; });
+if (!user) {
+alert('Usuario no encontrado. ¿Eres nuevo? Crea tu cuenta.');
+return;
+}
+appState.currentUser = user;
+appState.currentUser.questionsDone = appState.currentUser.questionsDone || {};
+updateHomeScreen();
+showScreen('screen-home');
+}
+
+function logoutUser() {
+appState.currentUser = null;
+appState['new-selected'] = [];
+appState['login-selected'] = [];
+const newName = document.getElementById('new-name');
+const loginName = document.getElementById('login-name');
+if (newName) newName.value = '';
+if (loginName) loginName.value = '';
+document.querySelectorAll('.emoji-option').forEach(function(e) { e.classList.remove('selected'); });
+document.querySelectorAll('.emoji-preview').forEach(function(e) { e.innerText = ''; });
+showScreen('screen-login');
+}
+
+function updateHomeScreen() {
+if (!appState.currentUser) return;
+const user = appState.currentUser;
+const headerName = document.getElementById('header-name');
+const headerEmojis = document.getElementById('header-emojis');
+const totalStars = document.getElementById('total-stars');
+const userLevel = document.getElementById('user-level');
+const uniqueQuestions = document.getElementById('unique-questions');
+const welcomeTitle = document.getElementById('welcome-title');
+
+if (headerName) headerName.innerText = user.name;
+if (headerEmojis) headerEmojis.innerText = user.emojis.join(' ');
+if (totalStars) totalStars.innerText = user.stars;
+if (userLevel) userLevel.innerText = user.level;
+if (uniqueQuestions) uniqueQuestions.innerText = user.uniqueQuestions;
+if (welcomeTitle) welcomeTitle.innerText = '¡Hola ' + user.name + '!';
+}
+
+function resetUserProgress() {
+if (confirm('¿Seguro que quieres borrar TU progreso? Esto no se puede deshacer.')) {
+appState.currentUser.stars = 0;
+appState.currentUser.level = 1;
+appState.currentUser.uniqueQuestions = 0;
+appState.currentUser.questionsDone = {};
+saveData();
+updateHomeScreen();
+alert('Tu progreso ha sido reiniciado.');
+}
+}
+
+/* ============================================================================
+NAVEGACIÓN
+============================================================================ */
+function showScreen(id) {
+document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+const target = document.getElementById(id);
+if (target) {
+target.classList.add('active');
+}
+if (appState.currentUser) {
+const ids = ['subject-stars', 'topic-stars', 'game-stars', 'rewards-stars', 'reward-unique', 'reward-level'];
+const values = [appState.currentUser.stars, appState.currentUser.stars, appState.currentUser.stars, appState.currentUser.stars, appState.currentUser.uniqueQuestions, appState.currentUser.level];
+ids.forEach(function(id, i) {
+const el = document.getElementById(id);
+if (el) el.innerText = values[i];
+});
+}
+const voiceStatus = document.getElementById('settings-voice');
+if (voiceStatus) voiceStatus.innerText = appState.voiceEnabled ? 'ON' : 'OFF';
+}
+
+function selectSubject(subj) {
+gameState.subject = subj;
+const titles = { 'mates': '🧮 Matemáticas', 'lengua': '📖 Lengua Castellana', 'ingles': '🇬🇧 Inglés', 'medio': '🌍 Conocimiento del Medio' };
+const topicTitle = document.getElementById('topic-title');
+if (topicTitle) topicTitle.innerText = titles[subj];
+const list = document.getElementById('topics-list');
+if (!list) return;
+list.innerHTML = '';
+let topics = [];
+if (subj === 'mates') topics = [
+{id:'sumas', name:'➕ Sumas con Problemas'}, {id:'restas', name:'➖ Restas con Problemas'},
+{id:'mult', name:'✖️ Multiplicación'}, {id:'div', name:'➗ Divisiones'},
+{id:'fraccion', name:'🍕 Fracciones'}, {id:'problema', name:'🧩 Problemas Compuestos'}
+];
+if (subj === 'lengua') topics = [
+{id:'ortografia', name:'🅱️ Ortografía'}, {id:'gramatica', name:'📝 Gramática'},
+{id:'sinonimos', name:'🔄 Sinónimos'}, {id:'antonimos', name:'↔️ Antónimos'}
+];
+if (subj === 'ingles') topics = [
+{id:'vocabulario', name:'📚 Vocabulario'}, {id:'gramatica', name:'📝 Gramática Básica'},
+{id:'traduccion', name:'🔄 Traducciones'}, {id:'listening', name:'🔊 Listening'}
+];
+if (subj === 'medio') topics = [
+{id:'animales', name:'🦁 Animales'}, {id:'cuerpo', name:'🫀 Cuerpo Humano'}, {id:'planeta', name:'🪐 El Universo'}
+];
+topics.forEach(function(t) {
+let btn = document.createElement('button');
+btn.className = 'secondary';
+btn.innerText = t.name;
+btn.onclick = function() { startGame(t.id); };
+list.appendChild(btn);
+});
+showScreen('screen-topics');
+}
+
+function startGame(topicId) {
+gameState.topic = topicId;
+gameState.sessionStars = 0;
+gameState.attempts = 0;
+gameState.streak = 0;
+showScreen('screen-game');
+loadQuestion();
+}
+
+/* ============================================================================
+JUEGO
+============================================================================ */
 function getAvailableQuestions(subject, topic) {
 const user = appState.currentUser;
 const key = subject + '_' + topic;
 const done = user.questionsDone[key] || [];
 if (subject === 'mates') { return { infinite: true }; }
 const bank = questionBank[subject][topic];
-const available = bank.filter((q, index) => !done.includes(index));
+const available = bank.filter(function(q, index) { return !done.includes(index); });
 return { infinite: false, available, done, total: bank.length };
 }
 
@@ -1011,11 +1109,11 @@ if (emoji) emoji.innerText = '🧮';
 } else {
 const bank = questionBank[gameState.subject][gameState.topic];
 const availableQ = getAvailableQuestions(gameState.subject, gameState.topic);
-const availableIndices = bank.map((q, i) => i).filter(i => !availableQ.done.includes(i));
+const availableIndices = bank.map(function(q, i) { return i; }).filter(function(i) { return !availableQ.done.includes(i); });
 const randomIndex = availableIndices.length > 0 ? availableIndices[Math.floor(Math.random() * availableIndices.length)] : Math.floor(Math.random() * bank.length);
 gameState.currentQ = Object.assign({}, bank[randomIndex], { _index: randomIndex });
 const emoji = document.getElementById('question-emoji');
-if (emoji) emoji.innerText = gameState.subject === 'lengua' ? '📖' : '🌍';
+if (emoji) emoji.innerText = gameState.subject === 'lengua' ? '📖' : gameState.subject === 'ingles' ? '🇬🇧' : '🌍';
 }
 if (gameState.currentQ.context && contextDiv) {
 contextDiv.innerHTML = gameState.currentQ.context;
@@ -1039,6 +1137,10 @@ btn.innerText = opt;
 btn.onclick = function() { checkOptionAnswer(btn, opt); };
 if (areaOpt) areaOpt.appendChild(btn);
 });
+}
+if (gameState.subject === 'ingles' && appState.voiceEnabled && gameState.currentQ.voice) {
+const voiceLang = gameState.currentQ.listenFirst ? 'en-GB' : 'es-ES';
+setTimeout(function() { speak(gameState.currentQ.voice, voiceLang); }, 500);
 }
 }
 
@@ -1086,7 +1188,7 @@ if (gameState.streak % 5 === 0) {
 appState.currentUser.level++;
 playSound('levelup');
 createConfetti();
-speak('¡Nivel subido! ¡Eres increíble!');
+speak('¡Nivel subido! ¡Eres increíble!', 'es-ES');
 } else {
 playSound('correct');
 }
@@ -1148,15 +1250,13 @@ setTimeout((function(c) { return function() { document.body.removeChild(c); }; }
 }
 }
 
-// ============================================================================
-// INICIALIZACIÓN - SE EJECUTA CUANDO EL DOM ESTÁ LISTO
-// ============================================================================
+/* ============================================================================
+INICIALIZACIÓN
+============================================================================ */
 document.addEventListener('DOMContentLoaded', function() {
-console.log('DOM loaded, initializing...');
 initLoginScreen();
 });
 
-// Audio se inicializa con el primer click
 document.addEventListener('click', function initAudioOnFirstClick() {
 initAudio();
 document.removeEventListener('click', initAudioOnFirstClick);
